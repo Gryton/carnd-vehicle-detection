@@ -1,4 +1,4 @@
-** Vehicle Detection Project - Mateusz Gryt's Submission **
+# Vehicle Detection Project - Mateusz Gryt's Submission
 
 The goals / steps of this project are the following:
 
@@ -15,7 +15,7 @@ The goals / steps of this project are the following:
 [image3]: ./writeup_images/windows.jpg
 [image4]: ./writeup_images/scale1_test1.jpg
 [image5]: ./writeup_images/YCbCr.jpg
-[image6]: ./writeup_images/test1.png
+[image6]: ./writeup_images/test1.jpg
 [image7]: ./writeup_images/.png
 [image10]: ./writeup_images/all_heatmap.png
 [image11]: ./writeup_images/averaged_heatmap.png
@@ -114,7 +114,6 @@ heat for all scales and label coloring:
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (somewhat wobbly or unstable bounding boxes are ok as long as you are identifying the vehicles most of the time with minimal false positives.)
 Here's a [link to my video result](./writeup_images/project_video.mp4).
 
-![alt text][video1]
 
 #### 2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
 
@@ -136,6 +135,7 @@ and the bounding boxes overlaid on each frame of video, plus averaged image:
 
 ### Here are bounding boxes based on labels and the integrated heatmap from all six frames:
 ![alt text][image11]
+
 And averaging show the difference - on last frame, where nothing is found by classifier, pipeline still "finds" a car,
 based on previous heat maps.
 
