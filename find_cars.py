@@ -4,7 +4,7 @@ import cv2
 import glob
 import os
 import pickle
-import project
+import svc_trainer
 import time
 from scipy.ndimage.measurements import label
 
@@ -112,7 +112,7 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, orient, pix_per_cell, ce
     # img = img.astype(np.float32) / 255
 
     img_tosearch = img[ystart:ystop, :, :]
-    # ctrans_tosearch = project.convert_color(img_tosearch, conv='RGB2YCrCb')
+    # ctrans_tosearch = svc_trainer.convert_color(img_tosearch, conv='RGB2YCrCb')
     # ctrans_tosearch = cv2.cvtColor(img_tosearch, cv2.COLOR_RGB2HLS)
     ctrans_tosearch = cv2.cvtColor(img_tosearch, cv2.COLOR_RGB2YCrCb)
     if scale != 1:
@@ -136,9 +136,9 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, orient, pix_per_cell, ce
     nysteps = (nyblocks - nblocks_per_window) // cells_per_step
 
     # Compute individual channel HOG features for the entire image
-    hog1 = project.get_hog_features(ch1, orient, pix_per_cell, cell_per_block, feature_vec=False)
-    hog2 = project.get_hog_features(ch2, orient, pix_per_cell, cell_per_block, feature_vec=False)
-    hog3 = project.get_hog_features(ch3, orient, pix_per_cell, cell_per_block, feature_vec=False)
+    hog1 = svc_trainer.get_hog_features(ch1, orient, pix_per_cell, cell_per_block, feature_vec=False)
+    hog2 = svc_trainer.get_hog_features(ch2, orient, pix_per_cell, cell_per_block, feature_vec=False)
+    hog3 = svc_trainer.get_hog_features(ch3, orient, pix_per_cell, cell_per_block, feature_vec=False)
 
     on_windows = []
     for xb in range(nxsteps):
@@ -158,8 +158,8 @@ def find_cars(img, ystart, ystop, scale, svc, X_scaler, orient, pix_per_cell, ce
             subimg = cv2.resize(ctrans_tosearch[ytop:ytop + window, xleft:xleft + window], (64, 64))
 
             # Get color features
-            spatial_features = project.bin_spatial(subimg, size=spatial_size)
-            hist_features = project.color_hist(subimg, nbins=hist_bins)
+            spatial_features = svc_trainer.bin_spatial(subimg, size=spatial_size)
+            hist_features = svc_trainer.color_hist(subimg, nbins=hist_bins)
             features = []
             if spatial_feat == True:
                 features.append(spatial_features)
@@ -209,12 +209,12 @@ def single_img_features(img, color_space='RGB', spatial_size=(32, 32),
         feature_image = np.copy(img)
     # 3) Compute spatial features if flag is set
     if spatial_feat == True:
-        spatial_features = project.bin_spatial(feature_image, size=spatial_size)
+        spatial_features = svc_trainer.bin_spatial(feature_image, size=spatial_size)
         # 4) Append features to list
         img_features.append(spatial_features)
     # 5) Compute histogram features if flag is set
     if hist_feat == True:
-        hist_features = project.color_hist(feature_image, nbins=hist_bins)
+        hist_features = svc_trainer.color_hist(feature_image, nbins=hist_bins)
         # 6) Append features to list
         img_features.append(hist_features)
     # 7) Compute HOG features if flag is set
@@ -222,11 +222,11 @@ def single_img_features(img, color_space='RGB', spatial_size=(32, 32),
         if hog_channel == 'ALL':
             hog_features = []
             for channel in range(feature_image.shape[2]):
-                hog_features.extend(project.get_hog_features(feature_image[:, :, channel],
+                hog_features.extend(svc_trainer.get_hog_features(feature_image[:, :, channel],
                                                      orient, pix_per_cell, cell_per_block,
                                                      vis=False, feature_vec=True))
         else:
-            hog_features = project.get_hog_features(feature_image[:, :, hog_channel], orient,
+            hog_features = svc_trainer.get_hog_features(feature_image[:, :, hog_channel], orient,
                                             pix_per_cell, cell_per_block, vis=False, feature_vec=True)
         # 8) Append features to list
         img_features.append(hog_features)
@@ -346,7 +346,7 @@ class Frame():
 
 
 scales = [1, 1.5, 2, 2.5, 3]
-# find_cars = project.find_cars
+# find_cars = svc_trainer.find_cars
 images = glob.glob('./test_images/*39*.jpg')
 frame = Frame()
 for image_name in images:
