@@ -166,14 +166,19 @@ def main():
     hog_channel = 'ALL' # Can be 0, 1, 2, or "ALL"
     spatial_size = (32, 32)
     hist_bins = 32
+    spatial_feat = True
 
     t=time.time()
     car_features = extract_features(cars, color_space=colorspace, orient=orient,
                             pix_per_cell=pix_per_cell, cell_per_block=cell_per_block,
-                            hog_channel=hog_channel, spatial_size=spatial_size, hist_bins=hist_bins)
+                            hog_channel=hog_channel, spatial_size=spatial_size, hist_bins=hist_bins,
+                                    spatial_feat=spatial_feat,
+                                    )
     notcar_features = extract_features(notcars, color_space=colorspace, orient=orient,
                             pix_per_cell=pix_per_cell, cell_per_block=cell_per_block,
-                            hog_channel=hog_channel, spatial_size=spatial_size, hist_bins=hist_bins)
+                            hog_channel=hog_channel, spatial_size=spatial_size, hist_bins=hist_bins,
+                                       spatial_feat=spatial_feat,
+                                       )
     t2 = time.time()
     print(round(t2-t, 2), 'Seconds to extract HOG features...')
     # Create an array stack of feature vectors
@@ -219,6 +224,7 @@ def main():
     dist_pickle["cell_per_block"] = cell_per_block
     dist_pickle["spatial_size"] = spatial_size
     dist_pickle["hist_bins"] = hist_bins
+    dist_pickle["spatial_feat"] = spatial_feat
 
 
     pickle.dump(dist_pickle, open("svc_pickle.p", "wb" ))

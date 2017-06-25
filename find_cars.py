@@ -40,7 +40,9 @@ def draw_labeled_bboxes(img, labels):
         # Define a bounding box based on min/max x and y
         bbox = ((np.min(nonzerox), np.min(nonzeroy)), (np.max(nonzerox), np.max(nonzeroy)))
         # Draw the box on the image
-        cv2.rectangle(img, bbox[0], bbox[1], (0, 0, 255), 6)
+        color = [0, 0, 0]
+        color[car_number % 3] = 255
+        cv2.rectangle(img, bbox[0], bbox[1], color, 6)
     # Return the image
     return img
 
@@ -265,6 +267,23 @@ def search_windows(img, windows, clf, scaler, color_space='RGB',
     return on_windows
 
 
+def find_cars_pipeline(img):
+    ystart = 400
+    ystop = 656
+    hot_windows = find_cars(img, ystart, ystop, 1, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size,
+                        hist_bins)
+    hot_windows += find_cars(img, ystart, ystop, 1.5, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size,
+                        hist_bins)
+    hot_windows += find_cars(img, ystart, ystop, 2, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size,
+                        hist_bins)
+    heat = np.zeros_like(img[:, :, 0]).astype(np.float32)
+    heat = add_heat(heat, hot_windows)
+    heat = apply_threshold(heat, 2)
+    heatmap = np.clip(heat, 0, 255)
+    labels = label(heatmap)
+    out_img = draw_labeled_bboxes(np.copy(img), labels)
+    return out_img
+
 
 dist_pickle = pickle.load( open("svc_pickle.p", "rb" ) )
 svc = dist_pickle["svc"]
@@ -274,66 +293,121 @@ pix_per_cell = dist_pickle["pix_per_cell"]
 cell_per_block = dist_pickle["cell_per_block"]
 spatial_size = dist_pickle["spatial_size"]
 hist_bins = dist_pickle["hist_bins"]
+spatial_feat = dist_pickle["spatial_feat"]
 
 ystart = 400
 ystop = 656
 scale = 1.5
 
 
+class Vehicle():
+    def __init__(self):
+        self.recent_bbox = None
+        self.all_bboxes = []
+
+
+class Frame():
+    def __init__(self):
+        self._current_heat = None
+        self.n_heats = []
+        self._current_labels = None
+        self.n_labels = []
+        self.n = 3
+
+    @property
+    def current_heat(self):
+        return self._current_heat
+
+    @current_heat.setter
+    def current_heat(self, heat):
+        self.n_heats.append(heat)
+        if len(self.n_heats) > self.n:
+            self.n_heats.pop(0)
+        self._current_heat = heat
+
+    @property
+    def current_labels(self):
+        return self._current_labels
+
+    @current_labels.setter
+    def current_labels(self, labels):
+        self.n_labels.append(labels[0])
+        if len(self.n_labels) > self.n:
+            self.n_labels.pop(0)
+        self._current_labels = labels
+
+    @property
+    def avg_heat(self):
+        return np.mean(self.n_heats, axis=0, dtype=int)
+
+    @property
+    def avg_labels(self):
+        return np.mean(self.n_labels, axis=0, dtype=int)
+
+
+scales = [1, 1.5, 2, 2.5, 3]
 # find_cars = project.find_cars
-images = glob.glob('./test_images/*.jpg')
+images = glob.glob('./test_images/*39*.jpg')
+frame = Frame()
 for image_name in images:
 # img = mpimg.imread('test_images/test1.jpg')
     img = cv2.imread(image_name)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
+    hot_windows = []
     start = time.time()
-    hot_windows = find_cars(img, ystart, ystop, 1, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size,
-                        hist_bins)
+    for scale in scales:
+        hot_windows += find_cars(img, ystart, ystop, scale, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size,
+                        hist_bins, spatial_feat=spatial_feat)
     # cv2.imwrite('./output_images/windows.jpg'.format(os.path.basename(image_name)), cv2.cvtColor(draw_boxes(img, hot_windows, color=(0, 0, 255), thick=6), cv2.COLOR_RGB2BGR))
-    hot_windows += find_cars(img, ystart, ystop, 1.5, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size,
-                        hist_bins)
-    hot_windows += find_cars(img, ystart, ystop, 2, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size,
-                        hist_bins)
+    # hot_windows += find_cars(img, ystart, ystop, 1.5, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size,
+    #                     hist_bins, spatial_feat=spatial_feat)
+    # hot_windows += find_cars(img, ystart, ystop, 2, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size,
+    #                     hist_bins, spatial_feat=spatial_feat)
     print('find cars time:', time.time() - start)
     # out_img1 = find_cars(img, ystart, ystop, 3, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size,
     #                     hist_bins)
     # out_img2 = find_cars(img, ystart, ystop, 2, svc, X_scaler, orient, pix_per_cell, cell_per_block, spatial_size,
     #                     hist_bins)
-
     heat = np.zeros_like(img[:, :, 0]).astype(np.float32)
     heat = add_heat(heat, hot_windows)
+    frame.current_heat = heat
     heat = apply_threshold(heat, 2)
     heatmap = np.clip(heat, 0, 255)
+    cv2.imwrite('./output_images/avg_heat_{0}'.format(os.path.basename(image_name)), heat * 25)
     labels = label(heatmap)
-    out_img = draw_labeled_bboxes(np.copy(img), labels)
-    cv2.imwrite('./output_images/{0}'.format(os.path.basename(image_name)), cv2.cvtColor(out_img, cv2.COLOR_RGB2BGR))
+    frame.current_labels = labels
+    # out_img = draw_labeled_bboxes(np.copy(img), frame.avg_labels)
+    out_img_avg_heat = draw_labeled_bboxes(np.copy(img), label(apply_threshold(frame.avg_heat, 2)))
+    # cv2.imwrite('./output_images/avg_{0}'.format(os.path.basename(image_name)), cv2.cvtColor(out_img, cv2.COLOR_RGB2BGR))
+    cv2.imwrite('./output_images/avg_heat_labels_{0}'.format(os.path.basename(image_name)), cv2.cvtColor(out_img_avg_heat, cv2.COLOR_RGB2BGR))
     # cv2.imwrite('./output_images/scale1_{0}'.format(os.path.basename(image_name)), cv2.cvtColor(out_img1, cv2.COLOR_RGB2BGR))
     # cv2.imwrite('./output_images/scale05_{0}'.format(os.path.basename(image_name)), cv2.cvtColor(out_img2, cv2.COLOR_RGB2BGR))
 # plt.imshow(out_img)
 #     draw_image = np.copy(img)
-    start = time.time()
-    windows = slide_window(img, x_start_stop=[None, None], y_start_stop=[ystart, ystop],
-                        xy_window=(64, 64), xy_overlap=(0.5, 0.5))
-    windows += slide_window(img, x_start_stop=[None, None], y_start_stop=[ystart, ystop],
-                        xy_window=(96, 96), xy_overlap=(0.5, 0.5))
-    windows += slide_window(img, x_start_stop=[None, None], y_start_stop=[ystart, ystop],
-                        xy_window=(128, 128), xy_overlap=(0.5, 0.5))
 
-    hot_windows = search_windows(img, windows, svc, X_scaler, color_space='YCrCb',
-                            spatial_size=spatial_size, hist_bins=hist_bins,
-                            orient=orient, pix_per_cell=pix_per_cell,
-                            cell_per_block=cell_per_block,
-                            hog_channel='ALL', spatial_feat=True,
-                            hist_feat=True, hog_feat=True)
-    heat = np.zeros_like(img[:,:,0]).astype(np.float32)
-    heat = add_heat(heat, hot_windows)
-    heat = apply_threshold(heat,0)
-    heatmap = np.clip(heat, 0, 255)
-    # cv2.imshow('heatmap', heatmap)
-    cv2.imwrite('./output_images/heatmap_{0}'.format(os.path.basename(image_name)), cv2.cvtColor(heatmap, cv2.COLOR_GRAY2BGR))
-    labels = label(heatmap)
-    draw_image = draw_labeled_bboxes(np.copy(img), labels)
-    window_img = draw_boxes(draw_image, hot_windows, color=(0, 0, 255), thick=6)
-    print('seatch_windows time: ', time.time()-start)
-    cv2.imwrite('./output_images/find_single__{0}'.format(os.path.basename(image_name)), cv2.cvtColor(draw_image, cv2.COLOR_RGB2BGR))
+
+#     start = time.time()
+#     windows = slide_window(img, x_start_stop=[None, None], y_start_stop=[ystart, ystop],
+#                         xy_window=(64, 64), xy_overlap=(0.5, 0.5))
+#     windows += slide_window(img, x_start_stop=[None, None], y_start_stop=[ystart, ystop],
+#                         xy_window=(96, 96), xy_overlap=(0.5, 0.5))
+#     windows += slide_window(img, x_start_stop=[None, None], y_start_stop=[ystart, ystop],
+#                         xy_window=(128, 128), xy_overlap=(0.5, 0.5))
+#
+#     hot_windows = search_windows(img, windows, svc, X_scaler, color_space='YCrCb',
+#                             spatial_size=spatial_size, hist_bins=hist_bins,
+#                             orient=orient, pix_per_cell=pix_per_cell,
+#                             cell_per_block=cell_per_block,
+#                             hog_channel='ALL', spatial_feat=True,
+#                             hist_feat=True, hog_feat=True)
+#     heat = np.zeros_like(img[:,:,0]).astype(np.float32)
+#     heat = add_heat(heat, hot_windows)
+#     heat = apply_threshold(heat,0)
+#     heatmap = np.clip(heat, 0, 255)
+#     # cv2.imshow('heatmap', heatmap)
+#     cv2.imwrite('./output_images/heatmap_{0}'.format(os.path.basename(image_name)), cv2.cvtColor(heatmap, cv2.COLOR_GRAY2BGR))
+#     labels = label(heatmap)
+#     draw_image = draw_labeled_bboxes(np.copy(img), labels)
+#     window_img = draw_boxes(draw_image, hot_windows, color=(0, 0, 255), thick=6)
+#     print('seatch_windows time: ', time.time()-start)
+#     cv2.imwrite('./output_images/find_single__{0}'.format(os.path.basename(image_name)), cv2.cvtColor(draw_image, cv2.COLOR_RGB2BGR))
