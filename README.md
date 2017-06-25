@@ -10,13 +10,17 @@ The goals / steps of this project are the following:
 * Estimate a bounding box for vehicles detected.
 
 [//]: # (Image References)
-[image1]: ./examples/car_not_car.png
-[image2]: ./examples/HOG_example.jpg
+[image1]: ./writeup_images/cars_notcars.jpg
+[image2]: ./writeup_images/hog_training.jpg
 [image3]: ./examples/sliding_windows.jpg
 [image4]: ./examples/sliding_window.jpg
 [image5]: ./examples/bboxes_and_heat.png
 [image6]: ./examples/labels_map.png
 [image7]: ./examples/output_bboxes.png
+[image10]: ./writeup_images/all_heatmap.png
+[image11]: ./writeup_images/averaged_heatmap.png
+
+
 [video1]: ./project_video.mp4
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/513/view) Points
@@ -43,16 +47,15 @@ I explored different color spaces, different spatial sizes for spatial histogram
 
 Here is an example using the `YCrCb` color space and HOG parameters of `orientations=9`, `pixels_per_cell=8` and `cells_per_block=2`:
 
-
 ![alt text][image2]
 
 ####2. Explain how you settled on your final choice of HOG parameters
 
-I ended with `orientations=9`, `pixels_per_cell=8` and `cells_per_block=2`, as I found that greater values made worse
-accuracy on test set. Using such parameters I generally had over 99% accuracy on test set (if I haven't done other
+I ended with `orientations=9`, `pixels_per_cell=8` and `cells_per_block=2`, as I found that greater values for pixels_per_cell
+and cells_per_block made worse accuracy on test set. I started with `orientation=6`, but I found the 9 gives better accuracy,
+and I haven't noticed stable improvements. Using such parameters I generally had over 99% accuracy on test set (if I haven't done other
 parameters for colors totally wrong), so I thought it might be good base for going further.
 
-I tried various combinations of parameters and
 
 ####3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
 
@@ -113,15 +116,20 @@ image, get rid of single frame false positives, and "find" cars throughout whole
 frame.
 I then used `scipy.ndimage.measurements.label()` to identify individual blobs in the heatmap.
 I then assumed each blob corresponded to a vehicle.  I constructed bounding boxes to cover the area of each blob detected.
+I implemented 3 different colors for different labels, to improve visibility.
 
-Here's an example result showing the heatmap from a series of frames of video, the result of `scipy.ndimage.measurements.label()` and the bounding boxes then overlaid on the last frame of video:
+Here's an example result showing the heatmap from a series of 6 frames of video,
+and the bounding boxes overlaid on each frame of video, plus averaged image:
 
-### Here are six frames and their corresponding heatmaps:
+### Here are six frames with labels and their corresponding heatmaps:
 
-![alt text][image5]
+![alt text][image10]
 
-### Here is the output of `scipy.ndimage.measurements.label()` on the integrated heatmap from all six frames:
-![alt text][image6]
+### Here are bounding boxes based on labels and the integrated heatmap from all six frames:
+![alt text][image11]
+And averaging show the difference - on last frame, where nothing is found by classifier pipeline still "finds" a car,
+based on previous heat maps.
+
 
 ### Here the resulting bounding boxes are drawn onto the last frame in the series:
 ![alt text][image7]
